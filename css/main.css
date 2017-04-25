@@ -1,0 +1,14 @@
+body {
+	font-family: "Courier New", monospace;
+	margin: 0;
+}
+
+canvas {
+	position: absolute;
+	width: 100vw;
+	height: 100vh;
+}
+
+#fragmentShader, #vertexShader {
+	display: none;
+}

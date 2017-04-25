@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>FRACTALS</title>
+		<script src="js/three.js"></script>
+		<script src="js/calc.js"></script>
+		<script src="js/main.js"></script>
+		<link rel="stylesheet" href="css/main.css">
+	</head>
+	<body>
+		<script type="x-shader/x-vertex" id="vertexShader">
+			#ifdef GL_ES
+			precision highp float;
+			#endif
+			varying vec2 pass_TextureCoord;
+
+			void main() {
+			    pass_TextureCoord = uv;
+				gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);;
+			}
+		</script>
+		<script type="x-shader/x-fragment" id="fragmentShader2D">
+			#ifdef GL_ES
+			precision highp float;
+			#endif			
+
+			varying vec2 pass_TextureCoord;
+			uniform float iGlobalTime;
+			
+			#define ITERATIONS (256)
+			#define FIT (float(ITERATIONS))
+			#define WIDTH 2.0
+			#define HEIGHT 2.0
+			#define SPEED 12000.0
+			#define JULIA_X (1.02*(0.5*cos(iGlobalTime/SPEED) - 0.25*cos(2.0*iGlobalTime/SPEED)))
+			#define JULIA_Y (1.02*(0.5*sin(iGlobalTime/SPEED) - 0.25*sin(2.0*iGlobalTime/SPEED)))
+		//	#define JULIA_X (1.03*(0.25*cos(iGlobalTime/SPEED) - 1.0))
+		//	#define JULIA_Y (1.03*(0.25*sin(iGlobalTime/SPEED)))
+		
+			       
+			#define VIEWP_X (0.0)
+			            
+			#define VIEWP_Y (0.0)
+			       
+			
+			
+			struct compnum {
+			    highp float real;
+			    highp float imaginary;
+			};
+			
+			compnum mult(in compnum a) {
+			    compnum res;
+			    res.real = a.real*a.real - a.imaginary*a.imaginary;
+				res.imaginary = a.imaginary*a.real + a.imaginary*a.real;
+			    return res;
+			}
+			
+			compnum add(in compnum a, in compnum b) {
+			    compnum res;
+			    res.real = a.real + b.real;
+			    res.imaginary = a.imaginary + b.imaginary;
+			    return res;
+			}
+			
+			int doFractal(vec2 loc) {
+			    compnum sum;
+			    compnum tmp;
+			    compnum c;
+			    c.real = loc.x;
+			    c.imaginary = loc.y;
+			    
+			    int it = 0;
+			    for ( int i = 0; i < ITERATIONS; i++ ) {
+			        tmp = mult(sum);
+			        tmp = add(tmp,c);
+			        sum = tmp;
+			        highp vec2 tmpv = vec2(sum.real,sum.imaginary);
+			        if ( length(tmpv) > 2.0 )
+			            break;
+			        else
+			          	it++;
+			    }
+			    return it;
+			}
+			
+			int julia(vec2 loc) {
+			    compnum sum;
+			    compnum tmp;
+			    compnum c;
+			    sum.real = loc.x;
+			    sum.imaginary = loc.y;
+			    c.real = JULIA_X;
+			    c.imaginary = JULIA_Y;
+			    
+			    int it = 0;
+			    for ( int i = 0; i < ITERATIONS; i++ ) {
+			        tmp = mult(sum);
+			        tmp = add(tmp,c);
+			        sum = tmp;
+			        highp vec2 tmpv = vec2(sum.real,sum.imaginary);
+			        if ( length(tmpv) > 2.0 )
+			            break;
+			        else
+			          	it++;
+			    }
+			    return it;
+			}
+			
+			
+			
+			vec4 hsv_to_rgb(highp float h, highp float s, highp float v, float a)
+			{
+				highp float c = v * s;
+				h = mod((h * 6.0), 6.0);
+				highp float x = c * (1.0 - abs(mod(h, 2.0) - 1.0));
+				highp vec4 color;
+			 
+				if (0.0 <= h && h < 1.0) {
+					color = vec4(c, x, 0.0, a);
+				} else if (1.0 <= h && h < 2.0) {
+					color = vec4(x, c, 0.0, a);
+				} else if (2.0 <= h && h < 3.0) {
+					color = vec4(0.0, c, x, a);
+				} else if (3.0 <= h && h < 4.0) {
+					color = vec4(0.0, x, c, a);
+				} else if (4.0 <= h && h < 5.0) {
+					color = vec4(x, 0.0, c, a);
+				} else if (5.0 <= h && h < 6.0) {
+					color = vec4(c, 0.0, x, a);
+				} else {
+					color = vec4(0.0, 0.0, 0.0, a);
+				}
+			 
+				color.rgb += v - c;
+			 
+				return color;
+			}
+			
+			
+			float getColor(in int i) {
+			    return sqrt(sqrt(float(i)/FIT));
+			    
+			    //return float(i)/FIT;
+			}
+			
+			void mainImage( out vec4 fragColor, in vec2 fragCoord )
+			{
+			    
+				fragCoord -= vec2(0.5, 0.5);
+				fragCoord *= 2.0;
+			    fragCoord *= vec2(WIDTH,HEIGHT);
+			    fragCoord += vec2(VIEWP_X,VIEWP_Y);
+			    fragColor = vec4(1,1,1,1);
+			    float color = getColor(julia(fragCoord));
+			    fragColor = hsv_to_rgb(0.5+0.2*color,0.8,0.97*color,1.0);
+			    
+			    
+			    //fragColor *= getColor(doFractal(fragCoord));
+			    
+			}
+			
+			void main() {
+				vec4 color;
+				mainImage(color, pass_TextureCoord);
+				gl_FragColor = color;
+			}
+		</script>
+		<script type="x-shader/x-fragment" id="fragmentShader3D">
+			#ifdef GL_ES
+			precision highp float;
+			#endif			
+
+			varying vec2 pass_TextureCoord;
+			uniform float iGlobalTime;
+
+			#define ITERATIONS (48)
+			#define FIT (float(ITERATIONS))
+			
+			#define RAYTRACE_DIVS (100)
+			#define RTDVS (float(RAYTRACE_DIVS))
+			
+			#define CLIP_FAR (0.0)
+			#define CLIP_NEAR (-.9)
+			
+			#define CLIP_LEFT (-1.0)
+			#define CLIP_RIGHT (1.0)
+			
+			#define CLIP_TOP (1.0)
+			#define CLIP_BOTTOM (1.0)
+			
+			#define ROTATION_X (0.0)
+			#define ROTATION_Y (0.0)
+			
+			#define VPOS_X 0
+			#define VPOS_Y 0
+			
+			#define WIDTH 1
+			#define HEIGHT 1
+			
+			highp vec3;
+			highp float;
+			highp vec2;
+			
+			struct fracres {
+			    int iterations;
+			    bool inSet;
+			    float depth;
+			};
+			
+			vec3 vpow3(in vec3 a) {
+			    vec3 res;
+			    float x = a.x;
+			    float y = a.y;
+			    float z = a.z;
+			    float d = (x*x+y*y);
+			    float n = (3.0*z*z-x*x-y*y);
+			    res.x = n * x * (x*x-3.0*y*y) / d;
+			    res.y = n * y * (3.0*x*x-y*y) / d;
+			    res.z = z*(z*z-3.0*x*x-3.0*y*y);
+			    return res;
+			}
+			
+			
+			fracres mandelbulb(vec3 pos) {
+				fracres res;
+			    res.inSet = true;
+			    res.iterations = 0;
+			    vec3 Z = pos;
+			    
+			    for ( int i = 0; i < ITERATIONS; i++ ) {
+			        
+			        Z = vpow3(Z) + pos;
+			       
+			        
+			        if ( length(Z) > 2.0 ) {
+			            res.inSet = false;
+			            break;
+			        }
+			        
+			        res.iterations = i;
+			    }
+			    return res;
+			}
+			
+			
+			
+			void ray(inout vec3 pos) {
+			    pos.z += (CLIP_FAR-CLIP_NEAR)/RTDVS;
+			}
+			
+			mat4 rotationX = mat4(	vec4(1, 0, 0, 0),
+			                           	vec4(0,cos(ROTATION_X), -sin(ROTATION_X), 0),
+			                           	vec4( 0, sin(ROTATION_X), cos(ROTATION_X), 0),
+			                            vec4( 0, 0, 0, 1) );
+			
+			
+			
+			mat4 rotationY = mat4(	vec4(cos(ROTATION_Y), 0, sin(ROTATION_Y), 0),
+			                           		vec4(0,1, 0, 0),
+			                           		vec4(-sin(ROTATION_Y), 0, cos(ROTATION_Y), 0),
+			                            	vec4( 0, 0, 0, 1) );
+			                            
+			void transform(in vec3 pos, out vec3 pout) {
+			    pout = vec4(rotationX*rotationY*vec4(pos, 1)).xyz;
+			}
+			
+			fracres doMandBulb(in vec2 pos) {
+			    vec3 pos3 = vec3(pos, -1);
+			    float depth;
+			    fracres res;
+			    for ( int i = 0; i < RAYTRACE_DIVS; i++ ) {
+			        vec3 tpos;
+			        transform(pos3, tpos);
+			    	res = mandelbulb(tpos);
+			        if ( res.inSet ) {
+			            depth = pos3.z;
+			        	break;
+			        }
+			        ray(pos3);
+			    }
+			    res.depth = depth;
+			    return res;
+			}
+			
+			
+			vec4 hsv_to_rgb(highp float h, highp float s, highp float v, float a)
+			{
+				highp float c = v * s;
+				h = mod((h * 6.0), 6.0);
+				highp float x = c * (1.0 - abs(mod(h, 2.0) - 1.0));
+				highp vec4 color;
+			 
+				if (0.0 <= h && h < 1.0) {
+					color = vec4(c, x, 0.0, a);
+				} else if (1.0 <= h && h < 2.0) {
+					color = vec4(x, c, 0.0, a);
+				} else if (2.0 <= h && h < 3.0) {
+					color = vec4(0.0, c, x, a);
+				} else if (3.0 <= h && h < 4.0) {
+					color = vec4(0.0, x, c, a);
+				} else if (4.0 <= h && h < 5.0) {
+					color = vec4(x, 0.0, c, a);
+				} else if (5.0 <= h && h < 6.0) {
+					color = vec4(c, 0.0, x, a);
+				} else {
+					color = vec4(0.0, 0.0, 0.0, a);
+				}
+			 
+				color.rgb += v - c;
+			 
+				return color;
+			}
+			
+			
+			float getColor(in float i) {
+			    return i/2.0;
+			}
+			
+			float getColor2(in float i) {
+				return sqrt(sqrt(float(i)/FIT));
+			}
+			
+			void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+			    
+			    fragCoord = fragCoord - vec2(400,225);
+			    fragCoord *= vec2(1.0/400.0, 1.0/225.0);
+			    fragCoord.x *= 400.0/225.0;
+			    
+			    
+			    
+			    fracres res = doMandBulb(fragCoord);
+			    
+			   	fragColor = hsv_to_rgb(getColor(res.depth), 1.0, getColor2(float(res.iterations)), 1.0);
+			}
+			
+			void main() {
+				vec4 color;
+				mainImage(color, pass_TextureCoord);
+				gl_FragColor = color;
+			}
+		</script>
+				
+	</body>
+</html>
